@@ -68,6 +68,7 @@ def post_detail(request, post_id):
     }
     return render(request, template, context)
 
+
 @login_required
 def post_create(request):
     template = 'posts/create_post.html'
@@ -82,21 +83,23 @@ def post_create(request):
     post.save()
     return redirect('posts:profile', request.user.username)
 
+
 def post_edit(request, post_id):
     template = 'posts/create_post.html'
     post = (Post.objects.select_related('author').select_related('group')
             .filter(id=post_id))[0]
     form = PostForm(request.POST)
-    context = {
-        'post': post,
-        'is_edit': True,
-        'form': form,
-    }
-    if not form.is_valid():
-        return render(request, template, context)
-    post = form.save(commit=False)
-    post.author = request.user
-    post.save()
-
-    return redirect('posts:post_detail', post_id)
-
+    if post.author == request.user:
+        context = {
+            'post': post,
+            'is_edit': True,
+            'form': form,
+        }
+        if not form.is_valid():
+            return render(request, template, context)
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect('posts:post_detail', post_id)
+    else:
+        return redirect('posts:post_detail', post_id)
