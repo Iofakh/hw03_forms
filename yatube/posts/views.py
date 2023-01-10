@@ -6,10 +6,10 @@ from .forms import PostForm
 from .utils import create_paginator
 
 
-
 INDEX_POSTS_LIMIT = 10
 GROUP_POSTS_LIMIT = 10
 PROFILE_POSTS_LIMIT = 10
+
 
 def index(request):
     template = 'posts/index.html'
