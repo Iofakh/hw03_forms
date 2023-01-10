@@ -1,21 +1,20 @@
-from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from django.db.models import Count
+
 from .models import Post, Group, User
 from .forms import PostForm
+from .utils import create_paginator
+
 
 
 INDEX_POSTS_LIMIT = 10
 GROUP_POSTS_LIMIT = 10
-
+PROFILE_POSTS_LIMIT = 10
 
 def index(request):
     template = 'posts/index.html'
     posts = Post.objects.all()
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = create_paginator(request, posts, INDEX_POSTS_LIMIT)
     context = {
         'page_obj': page_obj
     }
@@ -26,9 +25,7 @@ def group_posts(request, slug):
     template = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
     posts = group.posts.all()
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = create_paginator(request, posts, GROUP_POSTS_LIMIT)
     context = {
         'page_obj': page_obj,
         'group': group,
@@ -38,33 +35,21 @@ def group_posts(request, slug):
 
 def profile(request, username):
     template = 'posts/profile.html'
-    author = User.objects.get(username=username)
-    posts = (Post.objects.select_related('author').select_related('group')
-             .filter(author=author))
-    count = posts.aggregate(Count("id"))
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    author = get_object_or_404(User, username=username)
+    posts = author.posts.all()
+    page_obj = create_paginator(request, posts, PROFILE_POSTS_LIMIT)
     context = {
         'author': author,
         'page_obj': page_obj,
-        'count': count,
     }
     return render(request, template, context)
 
 
 def post_detail(request, post_id):
     template = 'posts/post_detail.html'
-    post = (Post.objects.select_related('author').select_related('group')
-            .filter(id=post_id))[0]
-    title = post.text[:30]
-    author = post.author
-    count = Post.objects.filter(author=author).aggregate(Count("id"))
+    post = get_object_or_404(Post, id=post_id)
     context = {
         'post': post,
-        'title': title,
-        'author': author,
-        'count': count,
     }
     return render(request, template, context)
 
@@ -86,10 +71,9 @@ def post_create(request):
 
 def post_edit(request, post_id):
     template = 'posts/create_post.html'
-    post = (Post.objects.select_related('author').select_related('group')
-            .filter(id=post_id))[0]
-    form = PostForm(request.POST)
+    post = get_object_or_404(Post, id=post_id)
     if post.author == request.user:
+        form = PostForm(request.POST)
         context = {
             'post': post,
             'is_edit': True,
@@ -100,6 +84,4 @@ def post_edit(request, post_id):
         post = form.save(commit=False)
         post.author = request.user
         post.save()
-        return redirect('posts:post_detail', post_id)
-    else:
-        return redirect('posts:post_detail', post_id)
+    return redirect('posts:post_detail', post_id)
